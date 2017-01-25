@@ -49,9 +49,11 @@ def train(threadid, sess, env):
         a_batch.append(a_t)
         r_batch.append(r_t)
         s_next_batch.append(s_t_next)
-        if t % args.async_target_update_freq == 0:
+        if t % args.async_target_update_freq == 0 and t != 0:
+            copy_lock.acquire()
             print "thread %d update terget network, time %d" % (threadid, t)
             model_target.copy(sess, model)
+            copy_lock.release()
         if t % args.batch_size == 0 or terminal:
             readout_batch = sess.run(model_target.readout, feed_dict={model_target.s: s_next_batch})
             for i in range(len(readout_batch) - 1):
@@ -67,13 +69,12 @@ def train(threadid, sess, env):
             r_batch = []
             s_next_batch = []
             y_batch = []
-        #if threadid == 0:
-            #env.render()
-            #print "thread %d, time %d: action: %d, reward: %f" % (threadid, t, action_index, r_t)
+        # if threadid == 0:
+        #     print "thread %d, time %d: action: %d, reward: %f" % (threadid, t, action_index, r_t)
         t += 1
         total_reward += r_t
         if terminal:
-            print "thread %d game over, score %d, time %d" % (threadid, total_reward, t)
+            print "thread %d game over, score %d, time %d, epsilon %f" % (threadid, total_reward, t, epsilon)
             total_reward = 0
             x_t = env.reset()
             x_t = rgb2gray(resize(x_t))
@@ -81,21 +82,31 @@ def train(threadid, sess, env):
         else:
             s_t = s_t_next
         if t % 10000 == 0 and threadid == 0:
+            save_lock.acquire()
             saver.save(sess, 'save/model.tfmodel', global_step=t)
+            save_lock.release()
 
 threads = []
 envs = [gym.make(args.game) for _ in range(args.async_thread_num)]
 args.actions = envs[0].action_space.n
+# if args.game == 'Breakout-v0' or args.game == 'Pong-v0':
+#     args.actions = 3
 model_target = QFuncModel(args)
 model = QFuncModel(args)
 with tf.Session() as sess:
     tf.initialize_all_variables().run()
     saver = tf.train.Saver()
     model_target.copy(sess, model)
+    copy_lock = threading.Lock()
+    save_lock = threading.Lock()
     for i in range(args.async_thread_num):
         t = threading.Thread(target=train, args=(i, sess, envs[i]))
         threads.append(t)
         t.start()
+    if args.show_training:
+        while True:
+            for env in envs:
+                env.render()
     for t in threads:
         t.join()
 

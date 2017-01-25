@@ -1,0 +1,6 @@
+model_checkpoint_path: "model.tfmodel-1480000"
+all_model_checkpoint_paths: "model.tfmodel-1440000"
+all_model_checkpoint_paths: "model.tfmodel-1450000"
+all_model_checkpoint_paths: "model.tfmodel-1460000"
+all_model_checkpoint_paths: "model.tfmodel-1470000"
+all_model_checkpoint_paths: "model.tfmodel-1480000"
