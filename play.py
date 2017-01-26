@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import gym
+import random
 from gym import wrappers
 from model import QFuncModel
 from utils import *
@@ -19,11 +20,16 @@ with tf.Session() as sess:
         x_t = rgb2gray(resize(x_t))
         s_t = np.stack([x_t for _ in range(args.frames)], axis=2)
         total_reward = 0
+        action_index = 0
         while True:
             # env.render()
             a_t = np.zeros([args.actions])
-            readout_t = sess.run(model_target.readout, feed_dict={model_target.s: [s_t]})
-            action_index = np.argmax(readout_t)
+            if action_index == 3:
+                action_index = random.randrange(args.actions)
+            else:
+                readout_t = sess.run(model_target.readout, feed_dict={model_target.s: [s_t]})
+                action_index = np.argmax(readout_t)
+            print action_index,
             a_t[action_index] = 1
             x_t_next, r_t, terminal, info = env.step(action_index)
             total_reward += r_t
