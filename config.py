@@ -11,7 +11,7 @@ parser.add_argument('--initial_epsilon', type=float, default=1.0,
                     help='starting value of epsilon')
 parser.add_argument('--final_epsilon', type=float, default=0.0001,
                     help='final value of epsilon')
-parser.add_argument('--frame_per_action', type=int, default=1,
+parser.add_argument('--frames_per_action', type=int, default=3,
                     help='')
 parser.add_argument('--replay_memory', type=int, default=50000,
                     help='')
@@ -32,5 +32,8 @@ parser.add_argument('--async_target_update_freq', type=int, default=10000,
 parser.add_argument('--num_play_episode', type=int, default=100,
                     help='num_play_episode')
 parser.add_argument('--show_training', type=bool, default=False,
-                    help='sshow training')
+                    help='show training')
+parser.add_argument('--restore', type=bool, default=True,
+                    help='restore')
 args = parser.parse_args()
+keymap = {'Breakout-v0': [1, 4, 5]}

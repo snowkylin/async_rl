@@ -8,7 +8,7 @@ from utils import *
 from config import *
 
 env = gym.make(args.game)
-args.actions = env.action_space.n
+args.actions = len(keymap[args.game])
 model_target = QFuncModel(args)
 saver = tf.train.Saver()
 ckpt = tf.train.get_checkpoint_state('save')
@@ -22,16 +22,13 @@ with tf.Session() as sess:
         total_reward = 0
         action_index = 0
         while True:
-            # env.render()
+            #env.render()
             a_t = np.zeros([args.actions])
-            if action_index == 3:
-                action_index = random.randrange(args.actions)
-            else:
-                readout_t = sess.run(model_target.readout, feed_dict={model_target.s: [s_t]})
-                action_index = np.argmax(readout_t)
-            print action_index,
+            readout_t = sess.run(model_target.readout, feed_dict={model_target.s: [s_t]})
+            action_index = np.argmax(readout_t)
+            print keymap[args.game][action_index],
             a_t[action_index] = 1
-            x_t_next, r_t, terminal, info = env.step(action_index)
+            x_t_next, r_t, terminal, info = env.step(keymap[args.game][action_index])
             total_reward += r_t
             if terminal:
                 break
