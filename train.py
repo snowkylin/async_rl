@@ -3,7 +3,7 @@ import numpy as np
 import gym
 import random
 import threading
-import time
+import datetime
 import matplotlib.pyplot as plt
 from collections import deque
 from model import QFuncModel
@@ -47,18 +47,19 @@ def train(threadid, t_restore, sess, env):
         x_t_next, r_t, terminal, info = env.step(keymap[args.game][action_index])
         x_t_next = rgb2gray(resize(x_t_next))
         s_t_next = np.append(x_t_next[:, :, np.newaxis], s_t[:, :, 0:3], axis=2)
-        if epsilon > final_epsilon:
-            epsilon -= (args.initial_epsilon - final_epsilon) / args.explore
-        s_batch.append(s_t)
-        a_batch.append(a_t)
-        r_batch.append(r_t)
-        s_next_batch.append(s_t_next)
+        if t % args.frames_per_action == 0:
+            if epsilon > final_epsilon:
+                epsilon -= (args.initial_epsilon - final_epsilon) / args.explore
+            s_batch.append(s_t)
+            a_batch.append(a_t)
+            r_batch.append(r_t)
+            s_next_batch.append(s_t_next)
         if t % args.async_target_update_freq == 0:
             copy_lock.acquire()
             print "thread %d update terget network, time %d" % (threadid, t)
             model_target.copy(sess, model)
             copy_lock.release()
-        if t % args.batch_size == 0 or terminal:
+        if len(a_batch) >= args.batch_size or (terminal and len(s_next_batch) > 0):
             readout_batch = sess.run(model_target.readout, feed_dict={model_target.s: s_next_batch})
             for i in range(len(readout_batch) - 1):
                 y_batch.append(r_batch[i] + args.gamma * np.max(readout_batch[i]))
@@ -86,9 +87,12 @@ def train(threadid, t_restore, sess, env):
             s_t = np.stack([x_t for _ in range(args.frames)], axis=2)
         else:
             s_t = s_t_next
-        if t % 10000 == 0 and threadid == 0:
+        if t % 10000 == 0:
+            save_dir = args.save_dir + '/model.tfmodel'
             save_lock.acquire()
-            saver.save(sess, 'save/model.tfmodel', global_step=t)
+            print "thread %d time %d (%s) saved to %s" % (threadid, t, datetime.datetime.now() - time_begin,
+                                                          save_dir)
+            saver.save(sess, save_dir, global_step=t)
             save_lock.release()
 
 threads = []
@@ -96,11 +100,15 @@ envs = [gym.make(args.game) for _ in range(args.async_thread_num)]
 args.actions = len(keymap[args.game])
 model_target = QFuncModel(args)
 model = QFuncModel(args)
-with tf.Session() as sess:
+config = tf.ConfigProto()
+config.gpu_options.per_process_gpu_memory_fraction = args.gpu_memory_frac
+saver = tf.train.Saver()
+time_begin = datetime.datetime.now()
+with tf.Session(config=config) as sess:
     if args.restore:
-        saver = tf.train.Saver()
-        ckpt = tf.train.get_checkpoint_state('save')
+        ckpt = tf.train.get_checkpoint_state(args.save_dir)
         saver.restore(sess, ckpt.model_checkpoint_path)
+        print "restore from %s" % ckpt.model_checkpoint_path
         t_restore = int(ckpt.model_checkpoint_path.split('-')[-1])
     else:
         tf.initialize_all_variables().run()

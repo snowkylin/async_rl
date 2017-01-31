@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
 import gym
-import random
 from gym import wrappers
 from model import QFuncModel
 from utils import *
@@ -11,7 +10,8 @@ env = gym.make(args.game)
 args.actions = len(keymap[args.game])
 model_target = QFuncModel(args)
 saver = tf.train.Saver()
-ckpt = tf.train.get_checkpoint_state('save')
+ckpt = tf.train.get_checkpoint_state(args.save_dir)
+average = 0.0
 with tf.Session() as sess:
     saver.restore(sess, ckpt.model_checkpoint_path)
     env = wrappers.Monitor(env, 'play', force=True)
@@ -21,6 +21,7 @@ with tf.Session() as sess:
         s_t = np.stack([x_t for _ in range(args.frames)], axis=2)
         total_reward = 0
         action_index = 0
+        t = 0
         while True:
             #env.render()
             a_t = np.zeros([args.actions])
@@ -35,5 +36,8 @@ with tf.Session() as sess:
             else:
                 x_t_next = rgb2gray(resize(x_t_next))
                 s_t = np.append(x_t_next[:, :, np.newaxis], s_t[:, :, 0:3], axis=2)
-        print "episode %d: score %d" % (episode, total_reward)
+            t += 1
+        average += total_reward
+        print "episode %d: score %d, current average: %f" % (episode, total_reward, average / (episode + 1))
+
 
